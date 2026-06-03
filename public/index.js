@@ -435,6 +435,137 @@
       }
     }
 
+    // Валидация формы с подсветкой полей
+    function validateForm() {
+      const errors = [];
+      
+      // Получаем значения
+      const name = modalForm.elements['name'].value.trim();
+      const surname = modalForm.elements['surname'].value.trim();
+      
+      // 1. Проверка имени и фамилии
+      if (!name) {
+        errors.push({ field: 'name', message: 'Имя обязательно для заполнения' });
+      }
+      if (!surname) {
+        errors.push({ field: 'surname', message: 'Фамилия обязательна для заполнения' });
+      }
+      
+      // 2. Проверка контактов
+      const contactRows = modalForm.querySelectorAll('.contact-row');
+      let contactIndex = 0;
+      contactRows.forEach((row, idx) => {
+        const typeSelect = row.querySelector('.contact-type');
+        const valueInput = row.querySelector('.contact-value');
+        const type = typeSelect ? typeSelect.value.trim() : '';
+        const value = valueInput ? valueInput.value.trim() : '';
+        
+        if (!type && !value) {
+          return;
+        }
+        if (!type) {
+          errors.push({ field: `contact_type_${idx}`, message: 'Выберите тип контакта' });
+        }
+        if (!value) {
+          errors.push({ field: `contact_value_${idx}`, message: 'Заполните значение контакта' });
+        }
+        contactIndex++;
+      });
+      
+      return errors;
+    }
+
+    // Подсветка полей с ошибками
+    function highlightErrors(errors) {
+      clearFieldHighlights();
+      
+      errors.forEach(err => {
+        if (err.field === 'name') {
+          const nameInput = modalForm.elements['name'];
+          nameInput.classList.add('input-error');
+        } else if (err.field === 'surname') {
+          const surnameInput = modalForm.elements['surname'];
+          surnameInput.classList.add('input-error');
+        } else if (err.field.startsWith('contact_type_')) {
+          const idx = parseInt(err.field.split('_')[2]);
+          const row = modalForm.querySelectorAll('.contact-row')[idx];
+          if (row) {
+            const select = row.querySelector('.contact-type');
+            select.classList.add('input-error');
+          }
+        } else if (err.field.startsWith('contact_value_')) {
+          const idx = parseInt(err.field.split('_')[2]);
+          const row = modalForm.querySelectorAll('.contact-row')[idx];
+          if (row) {
+            const input = row.querySelector('.contact-value');
+            input.classList.add('input-error');
+          }
+        }
+      });
+    }
+
+    // Очистка подсветки всех полей
+    function clearFieldHighlights() {
+      const errorInputs = modalForm.querySelectorAll('.input-error');
+      errorInputs.forEach(input => input.classList.remove('input-error'));
+    }
+
+    // Отображение ошибок валидации над кнопками
+    function showValidationErrors(errors) {
+      removeModalError();
+      
+      if (errors.length === 0) return;
+      
+      const errorContainer = document.createElement('div');
+      errorContainer.className = 'error-msg validation-errors';
+      
+      const errorList = document.createElement('ul');
+      errorList.style.margin = '0';
+      errorList.style.paddingLeft = '20px';
+      errorList.style.textAlign = 'left';
+      
+      errors.forEach(err => {
+        const li = document.createElement('li');
+        li.textContent = err.message;
+        li.style.color = '#F06A4D';
+        li.style.fontSize = '12px';
+        li.style.margin = '4px 0';
+        errorList.appendChild(li);
+      });
+      
+      errorContainer.appendChild(errorList);
+      
+      const formActions = modalForm.querySelector('.form-actions');
+      modalForm.insertBefore(errorContainer, formActions);
+    }
+
+    // Сброс подсветки при изменении полей
+    function bindFieldValidationReset() {
+      // Для полей имени и фамилии
+      const nameInput = modalForm.elements['name'];
+      const surnameInput = modalForm.elements['surname'];
+      
+      const resetFieldHighlight = (e) => {
+        e.target.classList.remove('input-error');
+        // Также убираем общую ошибку
+        const validationErrors = modalForm.querySelector('.validation-errors');
+        if (validationErrors && !modalForm.querySelector('.input-error')) {
+          // Можно оставить, но лучше перепроверять при отправке
+        }
+      };
+      
+      nameInput.addEventListener('input', resetFieldHighlight);
+      surnameInput.addEventListener('input', resetFieldHighlight);
+      
+      // Для динамических контактов используем делегирование
+      modalForm.addEventListener('input', (e) => {
+        if (e.target.classList && e.target.classList.contains('contact-value') ||
+            e.target.classList && e.target.classList.contains('contact-type')) {
+          e.target.classList.remove('input-error');
+        }
+      });
+    }
+
     // Работа с контактами в форме
     function clearContacts() {
       modalForm.querySelector('.contacts-list').innerHTML = '';
@@ -483,52 +614,50 @@
     async function handleFormSubmit(e) {
       e.preventDefault();
       
+      // Очищаем предыдущие ошибки и подсветку
       removeModalError();
-    
-      // Блокируем форму на время отправки
+      clearFieldHighlights();
+      
+      // 1. Клиентская валидация
+      const validationErrors = validateForm();
+      if (validationErrors.length > 0) {
+        highlightErrors(validationErrors);
+        showValidationErrors(validationErrors);
+        return;
+      }
+      
+      // 2. Проверка на неизменность данных при редактировании (опционально)
+      const name = modalForm.elements['name'].value.trim();
+      const surname = modalForm.elements['surname'].value.trim();
+      const lastName = modalForm.elements['lastName'].value.trim();
+      
+      const contactRows = modalForm.querySelectorAll('.contact-row');
+      const contacts = [];
+      contactRows.forEach(row => {
+        const type = row.querySelector('.contact-type').value.trim();
+        const value = row.querySelector('.contact-value').value.trim();
+        if (type && value) contacts.push({ type, value });
+      });
+      
+      if (editingClientId && originalClientData) {
+        const isUnchanged =
+          name === originalClientData.name &&
+          surname === originalClientData.surname &&
+          lastName === originalClientData.lastName &&
+          JSON.stringify(contacts) === JSON.stringify(originalClientData.contacts);
+        if (isUnchanged) {
+          showInlineError('Нет изменений для сохранения');
+          return;
+        }
+      }
+      
+      // 3. Блокировка формы и отправка
       if (isSubmitting) return;
       isSubmitting = true;
       setFormDisabled(true);
       showModalLoading(true);
-    
+      
       try {
-        const name = modalForm.elements['name'].value.trim();
-        const surname = modalForm.elements['surname'].value.trim();
-        const lastName = modalForm.elements['lastName'].value.trim();
-    
-        if (!name || !surname) {
-          showInlineError('Имя и фамилия обязательны');
-          return;
-        }
-    
-        const contactRows = modalForm.querySelectorAll('.contact-row');
-        const contacts = [];
-        let hasEmptyContact = false;
-        contactRows.forEach(row => {
-          const type = row.querySelector('.contact-type').value.trim();
-          const value = row.querySelector('.contact-value').value.trim();
-          if (type && value) contacts.push({ type, value });
-          else if (type || value) hasEmptyContact = true; // не полностью заполнен
-        });
-        
-        if (hasEmptyContact) {
-          showInlineError('Все добавленные контакты должны быть полностью заполнены');
-          return;
-        }
-    
-        // Проверка на неизменность данных при редактированииshowInlineError
-        if (editingClientId && originalClientData) {
-          const dataUnchanged =
-            name === originalClientData.name &&
-            surname === originalClientData.surname &&
-            lastName === originalClientData.lastName &&
-            JSON.stringify(contacts) === JSON.stringify(originalClientData.contacts);
-          if (dataUnchanged) {
-            showInlineError('Нет изменений для сохранения');
-            return;
-          }
-        }
-    
         const data = { name, surname, lastName, contacts };
         
         if (editingClientId) {
@@ -540,12 +669,13 @@
         closeModal();
         loadAndRenderClients(searchInput.value);
       } catch (error) {
-        // Показываем ошибку от сервера или стандартное сообщение
-        let errorMsg = error.message;
+        let errorMsg = 'Что-то пошло не так...';
         if (error.errors && Array.isArray(error.errors)) {
           errorMsg = error.errors.map(e => e.message).join(', ');
+        } else if (error.message) {
+          errorMsg = error.message;
         }
-        showInlineError(errorMsg || 'Что-то пошло не так...');
+        showInlineError(errorMsg);
       } finally {
         isSubmitting = false;
         setFormDisabled(false);
@@ -674,6 +804,7 @@
     // ------------------------------------------------------------
     function init() {
       createUI();
+      bindFieldValidationReset();
       initAutocomplete();
       searchInput.addEventListener('input', onSearchInput);
       addButton.addEventListener('click', openAddModal);

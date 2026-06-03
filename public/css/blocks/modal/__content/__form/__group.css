@@ -56,3 +56,20 @@
 .asterisk {
     color: #9873FF;
 }
+
+/* Валидация полей */
+
+.input-error {
+    border-color: #F06A4D !important;
+    background-color: rgba(240, 106, 77, 0.05);
+  }
+  
+  .form-group .input-error,
+  .contact-row .input-error {
+    border-bottom-color: #F06A4D;
+  }
+  
+  .contact-type.input-error,
+  .contact-value.input-error {
+    border: 1px solid #F06A4D;
+  }
