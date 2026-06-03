@@ -26,11 +26,11 @@
             <form class="modal-form">
               <div class="form-group">
                 <span class="fake-placeholder">Фамилия<span class="asterisk">*</span></span>
-                <input type="text" name="name" required>
+                <input type="text" name="surname" required>
               </div>
               <div class="form-group">
                 <span class="fake-placeholder">Имя<span class="asterisk">*</span></span>
-                <input type="text" name="surname" required>
+                <input type="text" name="name" required>
               </div>
               <div class="form-group">
                 <span class="fake-placeholder">Отчество</span>
@@ -115,33 +115,17 @@
       return response.json();
     }
 
-    function updateClient(itemId, data) {
-      const clients = getClientList();
-      const itemIndex = clients.findIndex(({ id }) => id === itemId);
-      if (itemIndex === -1) throw new ApiError(404, { message: 'Client Not Found' });
-      
-      const existing = clients[itemIndex];
-      
-      // Обновляем только переданные поля
-      if (data.name !== undefined) existing.name = asString(data.name);
-      if (data.surname !== undefined) existing.surname = asString(data.surname);
-      if (data.lastName !== undefined) existing.lastName = asString(data.lastName);
-      if (data.contacts !== undefined) {
-        existing.contacts = Array.isArray(data.contacts) 
-          ? data.contacts.map(c => ({ type: asString(c.type), value: asString(c.value) }))
-          : [];
+    async function updateClient(id, data) {
+      const response = await fetch(`${API_PREFIX}/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.errors?.map(e => e.message).join(', ') || 'Ошибка обновления');
       }
-      
-      if (!existing.name || !existing.surname) {
-        throw new ApiError(422, { errors: [{ field: 'name', message: 'Имя и фамилия не могут быть пустыми' }] });
-      }
-      if (existing.contacts.some(c => !c.type || !c.value)) {
-        throw new ApiError(422, { errors: [{ field: 'contacts', message: 'Не все контакты заполнены' }] });
-      }
-      
-      existing.updatedAt = new Date().toISOString();
-      writeFileSync(DB_FILE, JSON.stringify(clients), { encoding: 'utf8' });
-      return existing;
+      return response.json();
     }
 
     async function deleteClient(id) {
@@ -159,7 +143,7 @@
     // 3. Утилиты
     // ------------------------------------------------------------
     function getFullName(client) {
-      return [client.name, client.surname, client.lastName].filter(Boolean).join(' ');
+      return [client.surname, client.name, client.lastName].filter(Boolean).join(' ');
     }
 
     function getContactIcon(type) {
@@ -325,9 +309,6 @@
           input._updateFilledState = updateFilledState;
       });
     }
-
-    const originalOpenAddModal = openAddModal;
-    const originalOpenEditModal = openEditModal;
 
     let editingClientId = null;
     let isSubmitting = false;

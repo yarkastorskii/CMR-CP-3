@@ -1,8 +1,8 @@
 .autocomplete-wrapper {
     position: relative;
-    width: 581px;
+    width: auto;
 }
-#searchInput {
+#header__search {
     width: 100%;
     padding: 8px 12px;
     box-sizing: border-box;
