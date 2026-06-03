@@ -1,0 +1,19 @@
+@import url(./__header/header.css);
+@import url(./__header/close.css);
+@import url(./__form/form.css);
+
+.modal-content {
+    z-index: auto;
+    opacity: 1;
+    background-color: #fff;
+    box-sizing: border-box;
+    padding: 15px;
+    width: 450px;
+    min-height: 400px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: left;
+
+    position: relative;
+}

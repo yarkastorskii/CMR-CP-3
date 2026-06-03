@@ -1,0 +1,19 @@
+.main__btn {
+    display: flex;
+    justify-content: space-between;
+    margin: 0 auto;
+    margin-top: 15px;
+    padding: 12px 26px;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    background-color: transparent;
+    border: 1px solid #9873FF;
+    color: #9873FF;
+}
+
+.main__btn span {
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 19px;
+}

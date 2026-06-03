@@ -1,0 +1,32 @@
+@import url(./__empty-msg.css);
+
+.main__load {
+    min-height: 300px;
+    max-height: 535px;
+    margin-bottom: 40px;
+    background-color: #FFFFFF;
+    background-position: center;
+    background-repeat: no-repeat;
+    position: relative;
+
+    will-change: transform;
+    filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.1));
+}
+
+.loading::before {
+    content: '';
+    position: absolute;
+    top: calc(50% - 20px);
+    left: calc(50% - 20px);
+
+    width: 40px;
+    height: 40px;
+    pointer-events: none;
+    z-index: 0;
+    
+    background-image: url(../../../img/load.png);
+    background-repeat: no-repeat;
+    background-position: center;
+    
+    animation: spin 1.2s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
+}

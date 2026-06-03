@@ -1,0 +1,82 @@
+.contacts-group {
+    position: relative;
+}
+
+.add-contact-btn {
+    position: relative;
+    background-color: #C8C5D130;
+    border: none;
+    width: calc(100% + 30px);
+    left: -15px;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+}
+
+.contacts-list:not(:has(.contact-row)) {
+    display: none;
+}
+
+.contacts-list {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 8px;
+    overflow-y: auto;
+    width: 100%;
+    min-height: 0px;
+    max-height: 110px;
+    padding: 15px;
+    background-color: #C8C5D130;
+
+    position: relative;
+    left: -15px;
+}
+
+.contact-row {
+    justify-self: center;
+    display: flex;
+    gap: 0;
+    align-items: center;
+    justify-content: center;
+}
+
+.contact-row * {
+    border: none;
+    background: none;
+    border: 1px solid #C8C5D1;
+}
+
+.contact-type {
+    background-color: #E7E5EB;
+    padding: 10px;
+    border-right: none;
+    height: 40px;
+    font-weight: 400;
+}
+
+.contact-value {
+    background-color: #fff;
+    height: 40px;
+    font-weight: 600;
+    box-sizing: border-box;
+    padding: 10px;
+}
+
+.contact-value::placeholder {
+    text-align: center;
+    font-weight: 400;
+}
+
+.remove-contact-btn {
+    border-left: none;
+    padding: 0px;
+    background-color: #E7E5EB;
+    width: 7%;
+    height: 39px;
+    text-align: center;
+    height: 40px;
+}

@@ -1,0 +1,50 @@
+.contact-icon {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}  
+
+.contact-icon::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.contact-icon::before {
+    content: '';
+    position: absolute;
+    bottom: calc(100% + 2px);
+    transform: translateY(50%);
+    border: 6px solid transparent;
+    border-top-color: #333;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    z-index: 1001;
+}
+  
+.contact-icon:hover::after,
+.contact-icon:hover::before {
+    opacity: 1;
+    visibility: visible;
+}
+
+
+.no-contacts {
+    color: rgba(128, 128, 128, 0.61);
+}

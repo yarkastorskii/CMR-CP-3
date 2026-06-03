@@ -1,0 +1,10 @@
+@import url(./__group.css);
+@import url(./__contacts-group.css);
+@import url(./form-actions/__actions.css);
+
+.modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    margin-top: 20px;
+}

@@ -1,0 +1,9 @@
+.card__row {
+    transition: background-color 0.2s ease;
+    border-bottom: 1px solid #F0F0F8;
+    padding-bottom: 8px;
+}
+
+.card__row:hover {
+    background-color: #F9F9FF;
+}

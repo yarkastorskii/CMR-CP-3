@@ -1,0 +1,30 @@
+@import url(./__error-msg.css);
+
+.form-actions {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 8px;
+
+    width: 150px;
+
+    position: relative;
+    bottom: 15px;
+    left: calc(50% - 75.5px);
+}
+
+.save-btn {
+    background-color: #9873FF;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    padding: 12.5px;
+}
+
+.cancel-btn {
+    background: none;
+    border: none;
+    text-decoration: underline;
+    color: #333333;
+    cursor: pointer;
+}

@@ -1,0 +1,20 @@
+.table-wrraper {
+    min-height: 300px;
+    max-height: 535px;
+    margin-bottom: 40px;
+    position: relative;
+}
+
+.table-wrraper::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    width: 100%;
+    min-height: 300px;
+    max-height: 515px;
+    background-color: #FFFFFF;
+    background-position: center;
+    background-repeat: no-repeat;
+    z-index: -1;
+    pointer-events: none;
+}

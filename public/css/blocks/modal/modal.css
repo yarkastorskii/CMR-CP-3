@@ -1,0 +1,29 @@
+@import url(./__content/modal-content.css);
+
+.modal {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.modal::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    background-color: #333333;
+    background-repeat: no-repeat;
+    background-position: center;
+    pointer-events: none;
+    z-index: -1;
+    opacity: 60%;
+}

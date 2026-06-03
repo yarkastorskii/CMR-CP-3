@@ -1,0 +1,9 @@
+.modal-close {
+    background-image: url(../../../../../svg/Frame339.svg);
+    background-repeat: no-repeat;
+    background-position: center;
+    height: 29px;
+    width: 29px;
+
+    cursor: pointer;
+}

@@ -1,0 +1,33 @@
+.autocomplete-wrapper {
+    position: relative;
+    width: 581px;
+}
+#searchInput {
+    width: 100%;
+    padding: 8px 12px;
+    box-sizing: border-box;
+}
+.suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-top: none;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none; /* скрыт по умолчанию */
+}
+.suggestions li {
+    padding: 8px 12px;
+    cursor: pointer;
+}
+.suggestions li:hover,
+.suggestions li.active {
+    background-color: #e9e9e9;
+}

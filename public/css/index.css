@@ -1,0 +1,6 @@
+@import url("./keyframes/__animations.css");
+
+@import url("./blocks/body.css");
+@import url("./blocks/header/header.css");
+@import url("./blocks/main/main.css");
+@import url("./blocks/modal/modal.css");

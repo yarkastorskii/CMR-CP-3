@@ -1,0 +1,36 @@
+.vk-icon {
+    background-image: url(../../../../svg/vk.svg);
+    background-repeat: no-repeat;
+    background-position: center;
+    height: 20px;
+    width: 20px;
+}
+.fb-icon {
+    background-image: url(../../../../svg/fb.svg);
+    background-repeat: no-repeat;
+    background-position: center;
+    height: 20px;
+    width: 20px;
+}
+.phone-icon {
+    background-image: url(../../../../svg/phone.svg);
+    background-repeat: no-repeat;
+    background-position: center;
+    height: 20px;
+    width: 20px;
+}
+.email-icon {
+    background-image: url(../../../../svg/mail.svg);
+    background-repeat: no-repeat;
+    background-position: center;
+    height: 20px;
+    width: 20px;
+}
+
+.other-icon {
+    background-image: url(../../../../svg/nonim.svg);
+    background-repeat: no-repeat;
+    background-position: center;
+    height: 20px;
+    width: 20px;
+}

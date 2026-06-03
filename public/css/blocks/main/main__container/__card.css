@@ -1,0 +1,19 @@
+@import url("./svg__logos.css");
+@import url("./__card/__table.css");
+@import url("./__card/__row.css");
+@import url("./__card/__hcol.css");
+@import url("./__card/__td.css");
+@import url("./__card/__actions.css");
+
+.client-card {
+    background: #FFFFFF;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+    width: 100%;
+    flex: 1 1 auto;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.client-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.1);
+}

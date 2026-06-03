@@ -1,0 +1,13 @@
+@import url("./__buttons.css");
+@import url("./__hcol.css");
+@import url("./__load.css");
+@import url("./__row.css");
+@import url("./__table.css");
+@import url("./__title.css");
+@import url("./main__container/__card.css");
+
+.main {
+    padding-right: 20px;
+    padding-top: 40px;
+    padding-left: 20px;
+}

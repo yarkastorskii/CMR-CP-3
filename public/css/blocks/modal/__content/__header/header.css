@@ -1,0 +1,17 @@
+.modal-header {
+    display: flex;
+    flex-direction: row-reverse;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.modal-title {
+    font-family: sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    vertical-align: middle;
+    line-height: 100%;
+    letter-spacing: 0px;
+    color: #333333;
+}

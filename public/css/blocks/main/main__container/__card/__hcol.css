@@ -1,0 +1,9 @@
+@import url("./hcol/exp.css");
+
+.card__hcol {
+    text-align: left;
+    padding: 16px 12px;
+    font-size: 16px;
+    color: #5A5A89;
+    letter-spacing: 0.3px;
+}
