@@ -3,12 +3,15 @@ const request = require('supertest');
 const fs = require('fs');
 const path = require('path');
 
-// Переопределяем путь к БД на временный файл, чтобы не затрагивать реальные данные
+// Устанавливаем тестовое окружение до подключения приложения,
+// чтобы условие NODE_ENV !== 'test' не запустило сервер
+process.env.NODE_ENV = 'test';
+
+// Переопределяем путь к БД на временный файл
 const TEST_DB_FILE = path.join(__dirname, '.test-db.json');
 process.env.DB_FILE = TEST_DB_FILE;
 
-// Импортируем приложение (после установки переменной окружения)
-const app = require('./server'); // путь к основному файлу с Express
+const app = require('./server');
 
 beforeEach(() => {
   // Перед каждым тестом очищаем тестовую БД
@@ -37,7 +40,9 @@ const createTestClient = async (data = {}) => {
 };
 
 describe('API clients', () => {
-  // Тесты на создание клиента
+  // ================================================================
+  // POST /api/clients
+  // ================================================================
   describe('POST /api/clients', () => {
     it('должен создать клиента и вернуть 201', async () => {
       const res = await createTestClient();
@@ -74,13 +79,18 @@ describe('API clients', () => {
       expect(res.statusCode).toBe(422);
       expect(res.body.errors).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ field: 'contacts', message: 'Не все добавленные контакты полностью заполнены' }),
+          expect.objectContaining({
+            field: 'contacts',
+            message: 'Не все добавленные контакты полностью заполнены',
+          }),
         ])
       );
     });
   });
 
-  // Тесты на получение списка
+  // ================================================================
+  // GET /api/clients
+  // ================================================================
   describe('GET /api/clients', () => {
     it('должен вернуть пустой массив, если клиентов нет', async () => {
       const res = await request(app).get('/api/clients');
@@ -95,7 +105,7 @@ describe('API clients', () => {
       expect(res.body[0].name).toBe('Иван');
     });
 
-    it('должен фильтровать по поисковому запросу search', async () => {
+    it('должен фильтровать по поисковому запросу search (кириллица)', async () => {
       await createTestClient({ name: 'Петр', surname: 'Петров' });
       await createTestClient({ name: 'Иван', surname: 'Сидоров' });
 
@@ -104,18 +114,48 @@ describe('API clients', () => {
       expect(res.body[0].name).toBe('Петр');
     });
 
-    it('должен искать по значению контактов', async () => {
+    it('должен искать по значению контактов (с учётом языкового фильтра)', async () => {
+      // Клиент с латинским именем и email для латинского поиска
       await createTestClient({
-        name: 'Мария',
-        surname: 'Петрова',
-        contacts: [{ type: 'email', value: 'maria@test.ru' }],
+        name: 'John',
+        surname: 'Doe',
+        contacts: [{ type: 'email', value: 'john@test.ru' }],
       });
-      const res = await request(app).get('/api/clients?search=maria');
+      // Поиск по латинице
+      const res = await request(app).get('/api/clients?search=john');
+      expect(res.body).toHaveLength(1);
+    });
+
+    it('должен исключать клиента, если поиск на кириллице, а имя латиницей', async () => {
+      await createTestClient({ name: 'John', surname: 'Doe' });
+      const res = await request(app).get('/api/clients?search=Иван');
+      expect(res.body).toHaveLength(0);
+    });
+
+    it('должен исключать клиента, если поиск на латинице, а имя кириллицей', async () => {
+      await createTestClient({ name: 'Иван', surname: 'Иванов' });
+      const res = await request(app).get('/api/clients?search=John');
+      expect(res.body).toHaveLength(0);
+    });
+
+    it('должен искать по нескольким словам (имя + фамилия)', async () => {
+      await createTestClient({ name: 'Анна', surname: 'Кузнецова' });
+      await createTestClient({ name: 'Анна', surname: 'Смирнова' });
+      const res = await request(app).get('/api/clients?search=Анна Кузнецова');
+      expect(res.body).toHaveLength(1);
+      expect(res.body[0].surname).toBe('Кузнецова');
+    });
+
+    it('должен корректно обрабатывать поиск с пробелами в начале и конце', async () => {
+      await createTestClient({ name: 'Петр', surname: 'Петров' });
+      const res = await request(app).get('/api/clients?search=  Петр  ');
       expect(res.body).toHaveLength(1);
     });
   });
 
-  // Тесты на получение одного клиента
+  // ================================================================
+  // GET /api/clients/:id
+  // ================================================================
   describe('GET /api/clients/:id', () => {
     it('должен вернуть клиента по id', async () => {
       const { body: created } = await createTestClient();
@@ -131,7 +171,9 @@ describe('API clients', () => {
     });
   });
 
-  // Тесты на обновление клиента
+  // ================================================================
+  // PATCH /api/clients/:id
+  // ================================================================
   describe('PATCH /api/clients/:id', () => {
     it('должен обновить имя клиента', async () => {
       const { body: created } = await createTestClient();
@@ -146,6 +188,16 @@ describe('API clients', () => {
       );
     });
 
+    it('должен обновить контакты', async () => {
+      const { body: created } = await createTestClient();
+      const newContacts = [{ type: 'email', value: 'alex@test.ru' }];
+      const res = await request(app)
+        .patch(`/api/clients/${created.id}`)
+        .send({ contacts: newContacts });
+      expect(res.statusCode).toBe(200);
+      expect(res.body.contacts).toEqual(newContacts);
+    });
+
     it('должен вернуть 404 при обновлении несуществующего клиента', async () => {
       const res = await request(app)
         .patch('/api/clients/fake-id')
@@ -153,16 +205,39 @@ describe('API clients', () => {
       expect(res.statusCode).toBe(404);
     });
 
-    it('должен вернуть 422 если обновлённые данные некорректны', async () => {
+    it('должен вернуть 422 если обновлённые данные некорректны (пустое имя)', async () => {
       const { body: created } = await createTestClient();
       const res = await request(app)
         .patch(`/api/clients/${created.id}`)
         .send({ name: '' });
       expect(res.statusCode).toBe(422);
+      expect(res.body.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ field: 'name', message: 'Имя не может быть пустым' }),
+        ])
+      );
+    });
+
+    it('должен вернуть 422 если в обновлённых контактах есть незаполненные', async () => {
+      const { body: created } = await createTestClient();
+      const res = await request(app)
+        .patch(`/api/clients/${created.id}`)
+        .send({ contacts: [{ type: 'phone', value: '' }] });
+      expect(res.statusCode).toBe(422);
+      expect(res.body.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            field: 'contacts',
+            message: 'Не все контакты заполнены',
+          }),
+        ])
+      );
     });
   });
 
-  // Тесты на удаление
+  // ================================================================
+  // DELETE /api/clients/:id
+  // ================================================================
   describe('DELETE /api/clients/:id', () => {
     it('должен удалить клиента и вернуть пустой объект', async () => {
       const { body: created } = await createTestClient();
@@ -181,7 +256,9 @@ describe('API clients', () => {
     });
   });
 
-  // Проверка CORS (опционально)
+  // ================================================================
+  // CORS
+  // ================================================================
   describe('CORS headers', () => {
     it('должен отвечать на OPTIONS запрос', async () => {
       const res = await request(app).options('/api/clients');
