@@ -328,15 +328,23 @@
       
       confirmMessage.textContent = message;
       
-      // Обработчики (одноразовые)
+      const hideConfirmModal = () => {
+        confirmModal.classList.remove('modal--visible');
+        setTimeout(() => {
+          if (!confirmModal.classList.contains('modal--visible')) {
+            confirmModal.style.display = 'none';
+          }
+        }, 300);
+      };
+      
       const handleConfirm = () => {
-          confirmModal.style.display = 'none';
+          hideConfirmModal();
           cleanup();
           if (onConfirm) onConfirm();
       };
       
       const handleCancel = () => {
-          confirmModal.style.display = 'none';
+          hideConfirmModal();
           cleanup();
           if (onCancel) onCancel();
       };
@@ -345,7 +353,7 @@
           deleteBtn.removeEventListener('click', handleConfirm);
           cancelBtn.removeEventListener('click', handleCancel);
           closeBtn.removeEventListener('click', handleCancel);
-          // Также убираем клик по фону
+          
           confirmModal.removeEventListener('click', backdropHandler);
       };
       
@@ -361,6 +369,9 @@
       confirmModal.addEventListener('click', backdropHandler);
       
       confirmModal.style.display = 'flex';
+      requestAnimationFrame(() => {
+        confirmModal.classList.add('modal--visible');
+      });
     }
 
     function openAddModal() {
@@ -371,7 +382,14 @@
       modal.querySelector(".cancel-btn").textContent = 'Отмена';
       modalForm.reset();
       clearContacts();
+      
+      // Показываем модальное окно с анимацией
       modal.style.display = 'flex';
+      // Небольшая задержка, чтобы display успел примениться
+      requestAnimationFrame(() => {
+        modal.classList.add('modal--visible');
+      });
+      
       modal.dataset.state = "add";
       initFakePlaceholders(modalForm);
       setFormDisabled(false);
@@ -421,6 +439,11 @@
       if (currentHashId !== clientId) {
         setHashForClient(clientId);
       }
+
+      modal.style.display = 'flex';
+      requestAnimationFrame(() => {
+        modal.classList.add('modal--visible');
+      });
       
       editingClientId = clientId;
       modal.querySelector('.modal-title').textContent = 'Редактировать клиента';
@@ -462,7 +485,12 @@
     }
 
     function closeModal() {
-      modal.style.display = 'none';
+      modal.classList.remove('modal--visible');
+      setTimeout(() => {
+        if (!modal.classList.contains('modal--visible')) {
+          modal.style.display = 'none';
+        }
+      }, 300); // Длительность transition
       modalForm.reset();
       clearContacts();
       editingClientId = null;
@@ -845,7 +873,7 @@
 
     function handleHashChange() {
       const clientId = getClientIdFromHash();
-      if (clientId && !modal.style.display === 'flex') { // модальное окно не открыто
+      if (clientId && !modal.classList.contains('modal--visible')) {
         openEditModal(clientId);
       }
     }
@@ -867,6 +895,11 @@
       if (window.location.hash) {
         handleHashChange();
       }
+      window.addEventListener('click', (e) => {
+        if (e.target === modal && modal.classList.contains('modal--visible')) {
+          closeModal();
+        }
+      });
       modalForm.addEventListener('submit', handleFormSubmit);
       modal.querySelector('.cancel-btn').addEventListener('click', () => {
         if (modal.dataset.state === "edit") {

@@ -1,0 +1,28 @@
+/* Базовая анимация для модального окна */
+.modal {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+  }
+  
+.modal.modal--visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal::before {
+    transition: opacity 0.3s ease;
+}
+
+.modal.modal--visible::before {
+    opacity: 0.6;
+}
+
+.modal-content {
+    transform: scale(0.9);
+    transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+}
+
+.modal.modal--visible .modal-content {
+    transform: scale(1);
+}

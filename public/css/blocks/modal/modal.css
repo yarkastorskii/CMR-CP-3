@@ -1,4 +1,5 @@
 @import url(./__content/modal-content.css);
+@import url(./modal-animation.css);
 
 .modal {
     display: flex;
@@ -25,7 +26,6 @@
     background-position: center;
     pointer-events: none;
     z-index: -1;
-    opacity: 60%;
 }
 
 /* ===== Модальное окно подтверждения ===== */
