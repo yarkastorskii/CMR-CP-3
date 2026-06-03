@@ -4,6 +4,11 @@
     const mainContainer = document.querySelector(".main__container");
     const API_PREFIX = '/api/clients';
 
+    // Переменные для сортировки
+    let currentSortField = 'id';     // id, fullname, createdAt, updatedAt
+    let currentSortDir = 'asc';      // asc или desc
+    let lastFetchedClients = [];     // кэш последнего загруженного списка
+
     // ------------------------------------------------------------
     // 1. UI: элементы управления и модальное окно
     // ------------------------------------------------------------
@@ -142,6 +147,27 @@
     // ------------------------------------------------------------
     // 3. Утилиты
     // ------------------------------------------------------------
+    function clearFormErrors() {
+      removeModalError();           // удаляем блок .error-msg
+      clearFieldHighlights();       // удаляем класс input-error с полей
+    }
+
+    function bindErrorResetOnInput() {
+      if (!modalForm) return;
+    
+      // Функция-обработчик
+      const resetErrorsHandler = () => {
+        clearFormErrors();
+      };
+    
+      // Используем делегирование на всей форме – события input и change
+      modalForm.addEventListener('input', resetErrorsHandler);
+      modalForm.addEventListener('change', resetErrorsHandler);
+    
+      // Сохраняем ссылки для возможности отписки (необязательно)
+      modalForm._resetErrorsHandler = resetErrorsHandler;
+    }
+
     function getFullName(client) {
       return [client.surname, client.name, client.lastName].filter(Boolean).join(' ');
     }
@@ -192,6 +218,84 @@
         document.body.appendChild(tooltip);
         setTimeout(() => tooltip.remove(), 2000);
       }).catch(err => console.error('Ошибка копирования:', err));
+    }
+
+    // Сортировка массива клиентов
+    function sortClients(clients, field, dir) {
+      const sorted = [...clients];
+      const direction = dir === 'asc' ? 1 : -1;
+
+      sorted.sort((a, b) => {
+        let valA, valB;
+        switch (field) {
+          case 'id':
+            valA = parseInt(a.id, 10);
+            valB = parseInt(b.id, 10);
+            break;
+          case 'fullname':
+            valA = getFullName(a).toLowerCase();
+            valB = getFullName(b).toLowerCase();
+            break;
+          case 'createdAt':
+            valA = new Date(a.createdAt);
+            valB = new Date(b.createdAt);
+            break;
+          case 'updatedAt':
+            valA = new Date(a.updatedAt);
+            valB = new Date(b.updatedAt);
+            break;
+          default:
+            return 0;
+        }
+        if (valA < valB) return -1 * direction;
+        if (valA > valB) return 1 * direction;
+        return 0;
+      });
+      return sorted;
+    }
+
+    // Обновление иконок сортировки в заголовках таблицы
+    function updateSortIndicators() {
+      const headers = document.querySelectorAll('.main__thead .main__hcol');
+      const headerMap = {
+        'ID': 'id',
+        'Фамилия, имя, отчество': 'fullname',
+        'Дата и время создания': 'createdAt',
+        'Последнее изменение': 'updatedAt'
+      };
+
+      headers.forEach(header => {
+        const headerText = header.textContent.trim();
+        const field = headerMap[headerText];
+        if (!field) return;
+
+        // Удаляем старые иконки
+        const oldIcon = header.querySelector('.sort-icon');
+        if (oldIcon) oldIcon.remove();
+
+        // Если это текущее поле сортировки – добавляем иконку
+        if (field === currentSortField) {
+          const icon = document.createElement('span');
+          icon.className = 'sort-icon';
+          icon.textContent = currentSortDir === 'asc' ? ' ▲' : ' ▼';
+          header.appendChild(icon);
+        } else {
+          // Можно добавить нейтральную иконку (опционально)
+          const icon = document.createElement('span');
+          icon.className = 'sort-icon neutral';
+          icon.textContent = ' ↕';
+          header.appendChild(icon);
+        }
+      });
+    }
+
+    function onSearchInput() {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        currentSortField = 'id';
+        currentSortDir = 'asc';
+        loadAndRenderClients(searchInput.value);
+      }, 300);
     }
 
     // ------------------------------------------------------------
@@ -252,11 +356,12 @@
       mainContainer.classList.add('loading');
       try {
         const clients = await fetchClients(search);
-        mainContainer.innerHTML = '';
-        clients.forEach(client => {
-          mainContainer.appendChild(createClientCard(client));
-        });
-        if (clients.length === 0) {
+        lastFetchedClients = clients;  // сохраняем в кэш
+        // Применяем текущую сортировку
+        const sortedClients = sortClients(lastFetchedClients, currentSortField, currentSortDir);
+        renderClientsTable(sortedClients);
+        updateSortIndicators();  // обновляем иконки сортировки
+        if (sortedClients.length === 0) {
           mainContainer.innerHTML = '<p class="empty-message">Клиенты не найдены</p>';
         }
       } catch (error) {
@@ -264,10 +369,16 @@
         mainContainer.innerHTML = `<p class="error-message">Ошибка загрузки: ${error.message}</p>`;
       } finally {
         mainContainer.classList.toggle('loading', mainContainer.children.length === 0);
-        if (main__load) {
-          main__load.style.display = "none";
-        }
+        if (main__load) main__load.style.display = "none";
       }
+    }
+
+    // Отдельная функция отрисовки таблицы (без загрузки)
+    function renderClientsTable(clients) {
+      mainContainer.innerHTML = '';
+      clients.forEach(client => {
+        mainContainer.appendChild(createClientCard(client));
+      });
     }
 
     // ------------------------------------------------------------
@@ -463,6 +574,7 @@
         modalForm.elements['lastName'].value = client.lastName || '';
         if (client.contacts && client.contacts.length) {
           client.contacts.forEach(c => addContactToForm(c.type, c.value));
+          updateAddContactButtonVisibility();
         }
         originalClientData = {
           name: client.name || '',
@@ -638,11 +750,24 @@
 
     // Работа с контактами в форме
     function clearContacts() {
-      modalForm.querySelector('.contacts-list').innerHTML = '';
+      const contactsList = modalForm.querySelector('.contacts-list');
+      if (contactsList) {
+        contactsList.innerHTML = '';
+      }
+      updateAddContactButtonVisibility(); // важно: после очистки кнопка должна появиться
     }
 
     function addContactToForm(type = '', value = '') {
-      const list = modalForm.querySelector('.contacts-list');
+      const contactsList = modalForm.querySelector('.contacts-list');
+      if (!contactsList) return;
+    
+      // Проверка лимита – не добавляем, если уже 10 контактов
+      const currentCount = contactsList.querySelectorAll('.contact-row').length;
+      if (currentCount >= 10) return;
+    
+      // Экранируем значение, чтобы избежать XSS (если value содержит HTML-теги)
+      const safeValue = escapeHtml(value);
+    
       const row = document.createElement('div');
       row.className = 'contact-row';
       row.innerHTML = `
@@ -653,22 +778,53 @@
           <option value="facebook" ${type === 'facebook' ? 'selected' : ''}>Facebook</option>
           <option value="другое" ${type === 'другое' ? 'selected' : ''}>Другое</option>
         </select>
-        <input type="text" class="contact-value" placeholder="Введите значение" value="${value}">
+        <input type="text" class="contact-value" placeholder="Введите значение" value="${safeValue}">
         <button type="button" class="remove-contact-btn">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <g clip-path="url(#clip0_121_2816)">
-          <path d="M8 2C4.682 2 2 4.682 2 8C2 11.318 4.682 14 8 14C11.318 14 14 11.318 14 8C14 4.682 11.318 2 8 2ZM8 12.8C5.354 12.8 3.2 10.646 3.2 8C3.2 5.354 5.354 3.2 8 3.2C10.646 3.2 12.8 5.354 12.8 8C12.8 10.646 10.646 12.8 8 12.8ZM10.154 5L8 7.154L5.846 5L5 5.846L7.154 8L5 10.154L5.846 11L8 8.846L10.154 11L11 10.154L8.846 8L11 5.846L10.154 5Z" fill="#B0B0B0"/>
-          </g>
-          <defs>
-          <clipPath id="clip0_121_2816">
-          <rect width="16" height="16" fill="white"/>
-          </clipPath>
-          </defs>
-        </svg>                   
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <g clip-path="url(#clip0_121_2816)">
+              <path d="M8 2C4.682 2 2 4.682 2 8C2 11.318 4.682 14 8 14C11.318 14 14 11.318 14 8C14 4.682 11.318 2 8 2ZM8 12.8C5.354 12.8 3.2 10.646 3.2 8C3.2 5.354 5.354 3.2 8 3.2C10.646 3.2 12.8 5.354 12.8 8C12.8 10.646 10.646 12.8 8 12.8ZM10.154 5L8 7.154L5.846 5L5 5.846L7.154 8L5 10.154L5.846 11L8 8.846L10.154 11L11 10.154L8.846 8L11 5.846L10.154 5Z" fill="#B0B0B0"/>
+            </g>
+            <defs>
+              <clipPath id="clip0_121_2816">
+                <rect width="16" height="16" fill="white"/>
+              </clipPath>
+            </defs>
+          </svg>
         </button>
       `;
-      row.querySelector('.remove-contact-btn').addEventListener('click', () => row.remove());
-      list.appendChild(row);
+    
+      const removeBtn = row.querySelector('.remove-contact-btn');
+      removeBtn.addEventListener('click', () => {
+        row.remove();
+        updateAddContactButtonVisibility(); // после удаления проверяем, нужно ли показать кнопку
+      });
+    
+      contactsList.appendChild(row);
+      updateAddContactButtonVisibility(); // после добавления скрываем кнопку, если достигнут лимит
+    }
+    
+    // Вспомогательная функция для экранирования HTML-символов
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+      });
+    }
+
+    function updateAddContactButtonVisibility() {
+      const contactsList = modalForm.querySelector('.contacts-list');
+      const addButton = modalForm.querySelector('.add-contact-btn');
+      if (!contactsList || !addButton) return;
+    
+      const contactRows = contactsList.querySelectorAll('.contact-row');
+      if (contactRows.length >= 10) {
+        addButton.style.display = 'none';
+      } else {
+        addButton.style.display = 'flex';
+      }
     }
 
     function showInlineError(message) {
@@ -878,25 +1034,63 @@
     // ------------------------------------------------------------
     // 10. Инициализация
     // ------------------------------------------------------------
+    // Назначение сортировки по клику на заголовок
+    function initSorting() {
+      const headers = document.querySelectorAll('.main__thead .main__hcol');
+      const headerMap = {
+        'ID': 'id',
+        'Фамилия, имя, отчество': 'fullname',
+        'Дата и время создания': 'createdAt',
+        'Последнее изменение': 'updatedAt'
+      };
+
+      headers.forEach(header => {
+        const headerText = header.textContent.trim();
+        const field = headerMap[headerText];
+        if (!field) return;
+
+        header.style.cursor = 'pointer';
+        header.addEventListener('click', () => {
+          // Если кликнули по тому же полю – меняем направление
+          if (currentSortField === field) {
+            currentSortDir = currentSortDir === 'asc' ? 'desc' : 'asc';
+          } else {
+            currentSortField = field;
+            currentSortDir = 'asc';
+          }
+          // Применяем сортировку к кэшированным данным и перерисовываем
+          const sorted = sortClients(lastFetchedClients, currentSortField, currentSortDir);
+          renderClientsTable(sorted);
+          updateSortIndicators();
+        });
+      });
+    }
+
     function init() {
       createUI();
       bindFieldValidationReset();
+      bindErrorResetOnInput();
       initAutocomplete();
+      
       searchInput.addEventListener('input', onSearchInput);
       addButton.addEventListener('click', openAddModal);
       modalClose.addEventListener('click', closeModal);
+
       window.addEventListener('click', (e) => {
         if (e.target === modal) closeModal();
       });
+
       window.addEventListener('hashchange', handleHashChange);
       if (window.location.hash) {
         handleHashChange();
       }
+
       window.addEventListener('click', (e) => {
         if (e.target === modal && modal.classList.contains('modal--visible')) {
           closeModal();
         }
       });
+
       modalForm.addEventListener('submit', handleFormSubmit);
       modal.querySelector('.cancel-btn').addEventListener('click', () => {
         if (modal.dataset.state === "edit") {
@@ -920,6 +1114,7 @@
 
       // Первая загрузка данных с сервера
       loadAndRenderClients();
+      initSorting();
     }
 
     init();

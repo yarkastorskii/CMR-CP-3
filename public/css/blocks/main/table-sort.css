@@ -1,0 +1,21 @@
+.main__hcol {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+}
+  
+.sort-icon {
+    display: inline-block;
+    margin-left: 5px;
+    font-size: 12px;
+    color: #9873FF;
+}
+  
+.sort-icon.neutral {
+    color: #B0B0B0;
+    opacity: 0.5;
+}
+  
+.main__hcol:hover .sort-icon.neutral {
+    opacity: 1;
+}
