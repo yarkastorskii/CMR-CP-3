@@ -133,6 +133,12 @@
       if (!response.ok) throw new Error('Ошибка удаления');
     }
 
+    async function fetchClientById(id) {
+      const response = await fetch(`${API_PREFIX}/${id}`);
+      if (!response.ok) throw new Error('Клиент не найден');
+      return response.json();
+    }
+
     // ------------------------------------------------------------
     // 3. Утилиты
     // ------------------------------------------------------------
@@ -193,7 +199,7 @@
 
       // Обработчики кнопок
       card.querySelector('.action-delete').addEventListener('click', () => onDeleteClient(client.id, card));
-      card.querySelector('.action-edit').addEventListener('click', () => openEditModal(client));
+      card.querySelector('.action-edit').addEventListener('click', () => openEditModal(client.id));
 
       return card;
     }
@@ -266,17 +272,8 @@
     const originalOpenAddModal = openAddModal;
     const originalOpenEditModal = openEditModal;
 
-    window.openAddModal = function() {
-        originalOpenAddModal();
-        initFakePlaceholders(modalForm);
-    };
-
-    window.openEditModal = function(client) {
-        originalOpenEditModal(client);
-        initFakePlaceholders(modalForm);
-    };
-
     let editingClientId = null;
+    let isSubmitting = false;
     let originalClientData = null;
     let modalErrorElement = null;
 
@@ -336,31 +333,89 @@
       modal.style.display = 'flex';
       modal.dataset.state = "add";
       initFakePlaceholders(modalForm);
-  }
+      setFormDisabled(false);
+      showModalLoading(false);
+    }
 
-    function openEditModal(client) {
-      editingClientId = client.id;
-      originalClientData = {
+    function setFormDisabled(disabled) {
+      const inputs = modalForm.querySelectorAll('input, select, button');
+      inputs.forEach(el => {
+        if (el.classList && (el.classList.contains('save-btn') || el.classList.contains('cancel-btn') || el.classList.contains('add-contact-btn'))) {
+          // Кнопки тоже блокируем
+          el.disabled = disabled;
+        } else if (el.tagName === 'BUTTON' || el.tagName === 'INPUT' || el.tagName === 'SELECT') {
+          el.disabled = disabled;
+        }
+      });
+    }
+    
+    function showModalLoading(show) {
+      let loader = modal.querySelector('.modal-loader');
+      if (show) {
+        if (!loader) {
+          loader = document.createElement('div');
+          loader.className = 'modal-loader loading';
+          loader.style.position = 'absolute';
+          loader.style.top = '0';
+          loader.style.left = '0';
+          loader.style.width = '100%';
+          loader.style.height = '100%';
+          loader.style.backgroundColor = 'rgba(255,255,255,0.7)';
+          loader.style.display = 'flex';
+          loader.style.alignItems = 'center';
+          loader.style.justifyContent = 'center';
+          loader.style.zIndex = '10';
+          loader.innerHTML = '<div class="spinner"></div>';
+          modal.querySelector('.modal-content').style.position = 'relative';
+          modal.querySelector('.modal-content').appendChild(loader);
+        }
+        loader.style.display = 'flex';
+      } else {
+        if (loader) loader.style.display = 'none';
+      }
+    }
+
+    async function openEditModal(clientId) {
+      // Показываем модальное окно в режиме загрузки
+      editingClientId = clientId;
+      modal.querySelector('.modal-title').textContent = 'Редактировать клиента';
+      modal.querySelector(".cancel-btn").textContent = 'Удалить клиента';
+      modalForm.reset();
+      clearContacts();
+      
+      // Блокируем все поля и кнопки во время загрузки
+      setFormDisabled(true);
+      showModalLoading(true);
+      
+      modal.style.display = 'flex';
+      modal.dataset.state = "edit";
+      modal.dataset.client_id = clientId;
+      
+      try {
+        const client = await fetchClientById(clientId);
+        // Заполняем форму
+        modalForm.elements['name'].value = client.name || '';
+        modalForm.elements['surname'].value = client.surname || '';
+        modalForm.elements['lastName'].value = client.lastName || '';
+        if (client.contacts && client.contacts.length) {
+          client.contacts.forEach(c => addContactToForm(c.type, c.value));
+        }
+        originalClientData = {
           name: client.name || '',
           surname: client.surname || '',
           lastName: client.lastName || '',
           contacts: client.contacts ? client.contacts.map(c => ({ type: c.type, value: c.value })) : []
-      };
-      removeModalError();
-      modal.querySelector('.modal-title').textContent = 'Редактировать клиента';
-      modal.querySelector(".cancel-btn").textContent = 'Удалить клиента';
-      modalForm.elements['name'].value = client.name || '';
-      modalForm.elements['surname'].value = client.surname || '';
-      modalForm.elements['lastName'].value = client.lastName || '';
-      clearContacts();
-      if (client.contacts && client.contacts.length) {
-          client.contacts.forEach(c => addContactToForm(c.type, c.value));
+        };
+        // Убираем блокировку после загрузки
+        setFormDisabled(false);
+        showModalLoading(false);
+        initFakePlaceholders(modalForm);
+      } catch (error) {
+        console.error(error);
+        alert('Не удалось загрузить данные клиента');
+        closeModal();
       }
-      modal.style.display = 'flex';
-      modal.dataset.state = "edit";
-      modal.dataset.client_id = client.id;
-      initFakePlaceholders(modalForm);
-  }
+    }
 
     function closeModal() {
       modal.style.display = 'none';
@@ -415,63 +470,86 @@
       list.appendChild(row);
     }
 
-    // Отправка формы (*** ИЗМЕНЁН ***)
+    function showInlineError(message) {
+      removeModalError();
+      modalErrorElement = document.createElement('div');
+      modalErrorElement.className = 'error-msg';
+      modalErrorElement.innerHTML = `<span>${message}</span>`;
+      const formActions = modalForm.querySelector('.form-actions');
+      modalForm.insertBefore(modalErrorElement, formActions);
+    }
+
+    // Отправка формы
     async function handleFormSubmit(e) {
       e.preventDefault();
       
-      // Убираем предыдущее сообщение об ошибке, если оно есть
       removeModalError();
-
-      const name = modalForm.elements['name'].value.trim();
-      const surname = modalForm.elements['surname'].value.trim();
-      const lastName = modalForm.elements['lastName'].value.trim();
-
-      if (!name || !surname) {
-        alert('Имя и фамилия обязательны');
-        return;
-      }
-
-      const contactRows = modalForm.querySelectorAll('.contact-row');
-      const contacts = [];
-      contactRows.forEach(row => {
-        const type = row.querySelector('.contact-type').value;
-        const value = row.querySelector('.contact-value').value.trim();
-        if (type && value) contacts.push({ type, value });
-      });
-
-      // *** ПРОВЕРКА НА ИЗМЕНЕНИЯ ПРИ РЕДАКТИРОВАНИИ ***
-      if (editingClientId && originalClientData) {
-        const oldContacts = originalClientData.contacts;
-        const dataUnchanged =
-          name === originalClientData.name &&
-          surname === originalClientData.surname &&
-          lastName === originalClientData.lastName &&
-          JSON.stringify(contacts) === JSON.stringify(oldContacts);
-
-        if (dataUnchanged) {
-          // Создаём элемент с требуемым сообщением
-          modalErrorElement = document.createElement('div');
-          modalErrorElement.classList.add('error-msg')
-          modalErrorElement.innerHTML = '<span>Ошибка: новая модель организационной деятельности предполагает независимые способы реализации поставленных обществом задач!</span>';
-          
-          const formActions = modalForm.querySelector('.form-actions');
-          modalForm.insertBefore(modalErrorElement, formActions);
+    
+      // Блокируем форму на время отправки
+      if (isSubmitting) return;
+      isSubmitting = true;
+      setFormDisabled(true);
+      showModalLoading(true);
+    
+      try {
+        const name = modalForm.elements['name'].value.trim();
+        const surname = modalForm.elements['surname'].value.trim();
+        const lastName = modalForm.elements['lastName'].value.trim();
+    
+        if (!name || !surname) {
+          showInlineError('Имя и фамилия обязательны');
           return;
         }
-      }
-
-      const data = { name, surname, lastName, contacts };
-
-      try {
+    
+        const contactRows = modalForm.querySelectorAll('.contact-row');
+        const contacts = [];
+        let hasEmptyContact = false;
+        contactRows.forEach(row => {
+          const type = row.querySelector('.contact-type').value.trim();
+          const value = row.querySelector('.contact-value').value.trim();
+          if (type && value) contacts.push({ type, value });
+          else if (type || value) hasEmptyContact = true; // не полностью заполнен
+        });
+        
+        if (hasEmptyContact) {
+          showInlineError('Все добавленные контакты должны быть полностью заполнены');
+          return;
+        }
+    
+        // Проверка на неизменность данных при редактированииshowInlineError
+        if (editingClientId && originalClientData) {
+          const dataUnchanged =
+            name === originalClientData.name &&
+            surname === originalClientData.surname &&
+            lastName === originalClientData.lastName &&
+            JSON.stringify(contacts) === JSON.stringify(originalClientData.contacts);
+          if (dataUnchanged) {
+            showInlineError('Нет изменений для сохранения');
+            return;
+          }
+        }
+    
+        const data = { name, surname, lastName, contacts };
+        
         if (editingClientId) {
           await updateClient(editingClientId, data);
         } else {
           await createClient(data);
         }
+        
         closeModal();
         loadAndRenderClients(searchInput.value);
       } catch (error) {
-        alert(`Ошибка: ${error.message}`);
+        // Показываем ошибку от сервера или стандартное сообщение
+        let errorMsg = error.message;
+        if (error.errors && Array.isArray(error.errors)) {
+          errorMsg = error.errors.map(e => e.message).join(', ');
+        }
+        showInlineError(errorMsg || 'Что-то пошло не так...');
+      } finally {
+        isSubmitting = false;
+        setFormDisabled(false);
+        showModalLoading(false);
       }
     }
 
