@@ -157,6 +157,43 @@
       return map[type.toLowerCase()] || 'contact-icon';
     }
 
+    // Работа с хешем
+    function getClientIdFromHash() {
+      const hash = window.location.hash.slice(1); // убираем #
+      if (hash.startsWith('client-')) {
+        return hash.replace('client-', '');
+      }
+      return null;
+    }
+
+    function setHashForClient(clientId) {
+      if (clientId) {
+        window.location.hash = `client-${clientId}`;
+      } else {
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+    }
+
+    function copyClientLink(clientId) {
+      const url = `${window.location.origin}${window.location.pathname}#client-${clientId}`;
+      navigator.clipboard.writeText(url).then(() => {
+        // Опционально: показать уведомление
+        const tooltip = document.createElement('div');
+        tooltip.textContent = 'Ссылка скопирована';
+        tooltip.style.position = 'fixed';
+        tooltip.style.bottom = '20px';
+        tooltip.style.left = '50%';
+        tooltip.style.transform = 'translateX(-50%)';
+        tooltip.style.backgroundColor = '#333';
+        tooltip.style.color = '#fff';
+        tooltip.style.padding = '8px 16px';
+        tooltip.style.borderRadius = '4px';
+        tooltip.style.zIndex = '10000';
+        document.body.appendChild(tooltip);
+        setTimeout(() => tooltip.remove(), 2000);
+      }).catch(err => console.error('Ошибка копирования:', err));
+    }
+
     // ------------------------------------------------------------
     // 4. Рендер одной карточки клиента
     // ------------------------------------------------------------
@@ -200,6 +237,10 @@
       // Обработчики кнопок
       card.querySelector('.action-delete').addEventListener('click', () => onDeleteClient(client.id, card));
       card.querySelector('.action-edit').addEventListener('click', () => openEditModal(client.id));
+      card.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        copyClientLink(client.id);
+      });
 
       return card;
     }
@@ -376,14 +417,17 @@
     }
 
     async function openEditModal(clientId) {
-      // Показываем модальное окно в режиме загрузки
+      const currentHashId = getClientIdFromHash();
+      if (currentHashId !== clientId) {
+        setHashForClient(clientId);
+      }
+      
       editingClientId = clientId;
       modal.querySelector('.modal-title').textContent = 'Редактировать клиента';
       modal.querySelector(".cancel-btn").textContent = 'Удалить клиента';
       modalForm.reset();
       clearContacts();
       
-      // Блокируем все поля и кнопки во время загрузки
       setFormDisabled(true);
       showModalLoading(true);
       
@@ -393,7 +437,7 @@
       
       try {
         const client = await fetchClientById(clientId);
-        // Заполняем форму
+        // заполнение формы...
         modalForm.elements['name'].value = client.name || '';
         modalForm.elements['surname'].value = client.surname || '';
         modalForm.elements['lastName'].value = client.lastName || '';
@@ -406,13 +450,13 @@
           lastName: client.lastName || '',
           contacts: client.contacts ? client.contacts.map(c => ({ type: c.type, value: c.value })) : []
         };
-        // Убираем блокировку после загрузки
         setFormDisabled(false);
         showModalLoading(false);
         initFakePlaceholders(modalForm);
       } catch (error) {
         console.error(error);
         alert('Не удалось загрузить данные клиента');
+        setHashForClient(null); // очищаем хеш при ошибке
         closeModal();
       }
     }
@@ -425,6 +469,7 @@
       originalClientData = null;
       removeModalError();
       modal.dataset.state = "closed";
+      setHashForClient(null);
     }
 
     // Вспомогательная функция для удаления сообщения об ошибке
@@ -798,6 +843,12 @@
       });
     }
 
+    function handleHashChange() {
+      const clientId = getClientIdFromHash();
+      if (clientId && !modal.style.display === 'flex') { // модальное окно не открыто
+        openEditModal(clientId);
+      }
+    }
 
     // ------------------------------------------------------------
     // 10. Инициализация
@@ -812,6 +863,10 @@
       window.addEventListener('click', (e) => {
         if (e.target === modal) closeModal();
       });
+      window.addEventListener('hashchange', handleHashChange);
+      if (window.location.hash) {
+        handleHashChange();
+      }
       modalForm.addEventListener('submit', handleFormSubmit);
       modal.querySelector('.cancel-btn').addEventListener('click', () => {
         if (modal.dataset.state === "edit") {

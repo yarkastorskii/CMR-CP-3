@@ -28,3 +28,16 @@
     color: #333333;
     cursor: pointer;
 }
+
+.action-copy-link {
+    background: none;
+    border: none;
+    font-size: 12px;
+    cursor: pointer;
+    color: #9873FF;
+    text-decoration: underline;
+    padding: 4px 8px;
+  }
+  .action-copy-link:hover {
+    color: #7a5ccc;
+  }
