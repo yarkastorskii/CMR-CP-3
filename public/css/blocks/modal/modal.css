@@ -27,3 +27,80 @@
     z-index: -1;
     opacity: 60%;
 }
+
+/* ===== Модальное окно подтверждения ===== */
+.confirm-modal .modal-content {
+    width: 400px;
+    min-height: 200px;
+    text-align: center;
+}
+
+/* Заголовок — по центру */
+.confirm-modal .modal-header {
+    justify-content: center;
+    position: relative;
+}
+
+.confirm-modal .modal-close {
+    position: absolute;
+    right: 0;
+    top: 0;
+}
+
+.confirm-modal .modal-title {
+    text-align: center;
+    width: 100%;
+}
+
+/* Сообщение */
+.confirm-message {
+    padding: 20px 20px 10px;
+    font-size: 16px;
+    color: #333;
+    line-height: 1.4;
+}
+
+/* Блок с кнопками — как в добавлении клиента, но центрирован */
+.confirm-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    margin: 10px 0 20px;
+    left: auto;
+    position: static;
+}
+
+.confirm-delete-btn,
+.confirm-cancel-btn {
+    width: 130px;
+    padding: 12px 0;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+    border-radius: 0;
+}
+
+.confirm-delete-btn {
+    background-color: #9873FF;
+    color: #fff;
+}
+
+.confirm-delete-btn:hover {
+    background-color: #a180fa;
+}
+
+.confirm-cancel-btn {
+    background: none;
+    border: none;
+    text-decoration: underline;
+    color: #333333;
+}
+
+.confirm-cancel-btn:hover {
+    color: #9873FF;
+    text-decoration: underline;
+}

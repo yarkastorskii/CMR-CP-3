@@ -68,6 +68,27 @@
         modalForm = modal.querySelector('.modal-form');
       }
       modal.style.display = "none";
+
+      // Модальное окно подтверждения
+      if (!document.querySelector('.confirm-modal')) {
+        const confirmModal = document.createElement('div');
+        confirmModal.className = 'modal confirm-modal';
+        confirmModal.style.display = 'none';
+        confirmModal.innerHTML = `
+            <div class="modal-content confirm-content">
+                <div class="modal-header">
+                    <span class="modal-close"></span>
+                    <h2 class="modal-title">Удалить клиента</h2>
+                </div>
+                <div class="confirm-message"></div>
+                <div class="form-actions confirm-actions">
+                    <button class="confirm-delete-btn">Удалить</button>
+                    <button class="confirm-cancel-btn">Отмена</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(confirmModal);
+      }
     }
 
     // ------------------------------------------------------------
@@ -206,24 +227,103 @@
     // 6. Удаление клиента
     // ------------------------------------------------------------
     async function onDeleteClient(id, cardElement) {
-      if (!confirm('Удалить клиента?')) return;
-      try {
-        await deleteClient(id);
-        cardElement.remove();
-        if (mainContainer.children.length === 0) {
-          mainContainer.classList.add('loading');
-        }
-      } catch (error) {
-        alert(`Ошибка удаления: ${error.message}`);
-      }
-    }
+      showConfirmDialog('Вы действительно хотите удалить этого клиента?', async () => {
+          try {
+              await deleteClient(id);
+              cardElement.remove();
+              if (mainContainer.children.length === 0) {
+                  mainContainer.classList.add('loading');
+              }
+          } catch (error) {
+              alert(`Ошибка удаления: ${error.message}`);
+          }
+      });
+  }
 
     // ------------------------------------------------------------
     // 7. Модальное окно (добавление / редактирование)
     // ------------------------------------------------------------
+
+    function initFakePlaceholders(form) {
+      const groups = form.querySelectorAll('.form-group');
+      groups.forEach(group => {
+          const input = group.querySelector('input');
+          if (!input) return;
+          function updateFilledState() {
+              if (input.value.trim() !== '') {
+                  group.classList.add('form-group--filled');
+              } else {
+                  group.classList.remove('form-group--filled');
+              }
+          }
+          updateFilledState(); // установка при загрузке
+          input.addEventListener('input', updateFilledState);
+          // сохраним обработчик для возможного удаления (необязательно)
+          input._updateFilledState = updateFilledState;
+      });
+    }
+
+    const originalOpenAddModal = openAddModal;
+    const originalOpenEditModal = openEditModal;
+
+    window.openAddModal = function() {
+        originalOpenAddModal();
+        initFakePlaceholders(modalForm);
+    };
+
+    window.openEditModal = function(client) {
+        originalOpenEditModal(client);
+        initFakePlaceholders(modalForm);
+    };
+
     let editingClientId = null;
     let originalClientData = null;
     let modalErrorElement = null;
+
+    // Функция показа модального окна подтверждения
+    function showConfirmDialog(message, onConfirm, onCancel) {
+      const confirmModal = document.querySelector('.confirm-modal');
+      const confirmMessage = confirmModal.querySelector('.confirm-message');
+      const deleteBtn = confirmModal.querySelector('.confirm-delete-btn');
+      const cancelBtn = confirmModal.querySelector('.confirm-cancel-btn');
+      const closeBtn = confirmModal.querySelector('.modal-close');
+      
+      confirmMessage.textContent = message;
+      
+      // Обработчики (одноразовые)
+      const handleConfirm = () => {
+          confirmModal.style.display = 'none';
+          cleanup();
+          if (onConfirm) onConfirm();
+      };
+      
+      const handleCancel = () => {
+          confirmModal.style.display = 'none';
+          cleanup();
+          if (onCancel) onCancel();
+      };
+      
+      const cleanup = () => {
+          deleteBtn.removeEventListener('click', handleConfirm);
+          cancelBtn.removeEventListener('click', handleCancel);
+          closeBtn.removeEventListener('click', handleCancel);
+          // Также убираем клик по фону
+          confirmModal.removeEventListener('click', backdropHandler);
+      };
+      
+      const backdropHandler = (e) => {
+          if (e.target === confirmModal) {
+              handleCancel();
+          }
+      };
+      
+      deleteBtn.addEventListener('click', handleConfirm);
+      cancelBtn.addEventListener('click', handleCancel);
+      closeBtn.addEventListener('click', handleCancel);
+      confirmModal.addEventListener('click', backdropHandler);
+      
+      confirmModal.style.display = 'flex';
+    }
 
     function openAddModal() {
       editingClientId = null;
@@ -235,16 +335,16 @@
       clearContacts();
       modal.style.display = 'flex';
       modal.dataset.state = "add";
-    }
+      initFakePlaceholders(modalForm);
+  }
 
     function openEditModal(client) {
       editingClientId = client.id;
-      
       originalClientData = {
-        name: client.name || '',
-        surname: client.surname || '',
-        lastName: client.lastName || '',
-        contacts: client.contacts ? client.contacts.map(c => ({ type: c.type, value: c.value })) : []
+          name: client.name || '',
+          surname: client.surname || '',
+          lastName: client.lastName || '',
+          contacts: client.contacts ? client.contacts.map(c => ({ type: c.type, value: c.value })) : []
       };
       removeModalError();
       modal.querySelector('.modal-title').textContent = 'Редактировать клиента';
@@ -254,12 +354,13 @@
       modalForm.elements['lastName'].value = client.lastName || '';
       clearContacts();
       if (client.contacts && client.contacts.length) {
-        client.contacts.forEach(c => addContactToForm(c.type, c.value));
+          client.contacts.forEach(c => addContactToForm(c.type, c.value));
       }
       modal.style.display = 'flex';
       modal.dataset.state = "edit";
       modal.dataset.client_id = client.id;
-    }
+      initFakePlaceholders(modalForm);
+  }
 
     function closeModal() {
       modal.style.display = 'none';
@@ -503,23 +604,24 @@
         if (e.target === modal) closeModal();
       });
       modalForm.addEventListener('submit', handleFormSubmit);
-      modal.querySelector('.cancel-btn').addEventListener('click', ()=>{
-        if (modal.dataset.state == "edit") {
-          (async()=>{
+      modal.querySelector('.cancel-btn').addEventListener('click', () => {
+        if (modal.dataset.state === "edit") {
             const client_id = modal.dataset.client_id;
-            try {
-              await deleteClient(client_id);
-              await loadAndRenderClients(searchInput.value);
-            } catch(err) {
-              console.error(err)
-            } finally {
-              closeModal
-            }
-          })()
+            if (!client_id) return;
+            showConfirmDialog('Вы действительно хотите удалить этого клиента?', async () => {
+                try {
+                    await deleteClient(client_id);
+                    await loadAndRenderClients(searchInput.value);
+                    closeModal();
+                } catch (err) {
+                    console.error(err);
+                    alert(`Ошибка удаления: ${err.message}`);
+                }
+            });
         } else {
-          closeModal
+            closeModal();
         }
-      });
+    });
       modal.querySelector('.add-contact-btn').addEventListener('click', () => addContactToForm());
 
       // Первая загрузка данных с сервера

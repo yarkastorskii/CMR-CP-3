@@ -10,10 +10,6 @@
     width: calc(100% - 15px);
 }
 
-.form-group:has(input:not(:focus)) .fake-placeholder {
-    display: block;
-}
-
 .form-group input:focus {
     outline: none;
     border-bottom: 1px solid #7a7880;
@@ -29,13 +25,34 @@
     display: none;
 }
 
-.asterisk {
-    color: #9873FF;
+/* По умолчанию плейсхолдер показываем только если поле НЕ заполнено */
+.form-group:not(.form-group--filled) .fake-placeholder {
+    display: block;
 }
 
-.modal[data-state="edit"] .fake-placeholder {
+/* Когда поле в фокусе или заполнено – плейсхолдер "всплывает" вверх */
+.form-group input:focus ~ .fake-placeholder,
+.form-group--filled .fake-placeholder {
     display: block;
     top: -8px;
     transform: none;
     font-size: 10px;
+}
+
+/* Режим редактирования: для незаполненных полей плейсхолдер остаётся внутри, как при добавлении */
+.modal[data-state="edit"] .form-group:not(.form-group--filled) .fake-placeholder {
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: inherit;
+}
+
+/* Для заполненных полей в режиме редактирования – всё стандартно */
+.modal[data-state="edit"] .form-group--filled .fake-placeholder {
+    top: -8px;
+    transform: none;
+    font-size: 10px;
+}
+
+.asterisk {
+    color: #9873FF;
 }
